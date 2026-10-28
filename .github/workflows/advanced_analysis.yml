@@ -1,0 +1,59 @@
+name: Advanced Crypto Analysis → Telegram
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+
+jobs:
+  advanced-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Debug - List files
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo "=== List all files ==="
+          find . -type f -name "*.py" -o -name "*.yaml" -o -name "*.yml" | head -30
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            echo "requirements.txt not found, installing core packages..."
+            pip install requests pyyaml pandas ta matplotlib mplfinance Pillow
+          fi
+
+      - name: Run Advanced Analysis
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+          NANSEN_API_KEY: ${{ secrets.NANSEN_API_KEY }}
+        run: |
+          # Coba beberapa kemungkinan path
+          if [ -f src/analysis_bot.py ]; then
+            echo "Running src/analysis_bot.py"
+            python src/analysis_bot.py
+          elif [ -f analysis_bot.py ]; then
+            echo "Running analysis_bot.py (root)"
+            python analysis_bot.py
+          else
+            echo "ERROR: analysis_bot.py tidak ditemukan!"
+            echo "Silakan letakkan file di src/analysis_bot.py atau di root"
+            find . -name "analysis_bot.py" || true
+            exit 1
+          fi
