@@ -1,31 +1,36 @@
-name: Crypto Analysis to Telegram
+name: Crypto Analysis → Telegram Channel
 
 on:
   schedule:
-    # Runs every 4 hours (adjust as needed). Cron is UTC.
-    # For day trading: more frequent, e.g. every hour: '0 * * * *'
-    # For swing: daily '0 0 * * *' or twice daily
+    # Jadwal UTC. Sesuaikan dengan kebutuhan:
+    # Setiap 4 jam: '0 */4 * * *'
+    # Setiap jam (day trading): '0 * * * *'
+    # 2x sehari (swing): '0 8,20 * * *'
+    # Setiap hari jam 07:00 UTC: '0 7 * * *'
     - cron: '0 */4 * * *'
-  workflow_dispatch:  # Allow manual trigger from Actions tab
+  workflow_dispatch:   # Izinkan trigger manual dari tab Actions
 
 jobs:
-  analyze-and-post:
+  run-analysis:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run analysis and send to Telegram
+      - name: Run Analysis Bot
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

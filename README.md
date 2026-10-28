@@ -1,80 +1,146 @@
-# Crypto Analysis Telegram Bot (GitHub Actions)
+# Crypto Analysis Bot (Fundamental + Technical + Futures)
 
-Automated fundamental + technical analysis + futures signals for crypto (day & swing trading focus).
+Bot otomatis yang melakukan analisis kripto lengkap (Thesis, Fundamental, Teknikal, dan Sinyal Futures) lalu mengirimkannya secara terjadwal ke Telegram Channel menggunakan **GitHub Actions**.
 
-Posts scheduled reports to your Telegram channel.
+Cocok untuk metode **Day Trading** dan **Swing Trading**.
 
-**Disclaimer**: Not financial advice. Markets are risky. DYOR. This is a template.
+> ⚠️ **Disclaimer**: Ini bukan nasihat keuangan. Trading kripto berisiko tinggi kehilangan seluruh modal. Lakukan riset sendiri (DYOR), gunakan manajemen risiko yang ketat, dan hanya trade dengan uang yang siap hilang.
 
-## Setup Steps (Detailed)
+---
 
-### 1. Create Telegram Bot
-1. Open Telegram, search @BotFather
-2. Send `/newbot`
-3. Follow instructions, get **Bot Token** (e.g. `123456:ABC-DEF...`)
-4. (Optional) Set bot description, etc.
+## Fitur
 
-### 2. Create Telegram Channel
-1. Create a new Channel (public or private)
-2. Add your bot as **Administrator** (with post permission)
-3. Get Chat ID:
-   - For public: use `@channelusername`
-   - For private/group: Send a message to the channel, then visit `https://api.telegram.org/bot<TOKEN>/getUpdates` and look for `"chat":{"id":-100xxxxxxxxxx}`
+- Data real-time dari **CoinGecko** (harga, market cap, volume, sentiment)
+- Data **Binance Futures** publik (Funding Rate, Open Interest, Long/Short Ratio, Klines)
+- Analisis Teknikal otomatis (RSI, MACD, EMA 20/50, Trend)
+- Thesis & Futures Signal otomatis
+- Dukungan opsional: CoinMarketCap, Nansen, Arkham (jika API key tersedia)
+- Kirim ke Telegram Channel secara terjadwal
+- Gratis (GitHub Actions free tier)
+- Mudah dikustomisasi lewat `config/config.yaml`
 
-### 3. Create GitHub Repository
-1. Create new public/private repo on GitHub
-2. Upload these files:
-   - `requirements.txt`
-   - `src/analysis_bot.py`
-   - `.github/workflows/crypto_analysis.yml`
-3. Or clone and push the structure.
+---
 
-### 4. Add Repository Secrets
-Go to Repo → Settings → Secrets and variables → Actions → New repository secret
+## Struktur Repository
 
-Add:
-- `TELEGRAM_BOT_TOKEN`: your bot token
-- `TELEGRAM_CHAT_ID`: your channel chat id
-- Optional:
-  - `COINGECKO_API_KEY` (from coingecko.com/api)
-  - `CMC_API_KEY` (pro.coinmarketcap.com)
-  - `NANSEN_API_KEY` (nansen.ai - paid plan)
-  - `ARKHAM_API_KEY` (arkm.com - request access, paid)
+```
+crypto-analysis-repo/
+├── .github/
+│   └── workflows/
+│       └── crypto_analysis.yml     # Workflow GitHub Actions
+├── config/
+│   └── config.yaml                 # Daftar coin & pengaturan
+├── src/
+│   └── analysis_bot.py             # Script utama
+├── requirements.txt
+├── .gitignore
+└── README.md
+```
 
-### 5. Enable GitHub Actions
-- Push the files
-- Go to Actions tab, enable if needed
-- Workflow will run on schedule or you can trigger manually via "Run workflow"
+---
 
-### 6. Customize
-- Edit `COINS` list in `analysis_bot.py`
-- Adjust thesis/signal logic
-- Change cron schedule in workflow YAML (UTC)
-- Add more data sources (Nansen smart money, Arkham entity flows)
-- Integrate TradingView webhooks or more TA indicators
-- For CMC: use their latest quotes endpoint
-- Add charts by generating images (matplotlib) and send as photo
+## Langkah Setup Lengkap (Bahasa Indonesia)
 
-### Data Sources Notes
-- **CoinGecko**: Free public API (rate limited) or Demo/Pro key. Good for prices, mcap, community.
-- **CoinMarketCap**: Free Basic plan available. Similar market data.
-- **Nansen**: On-chain smart money, whale flows, PnL. Requires paid subscription + API key. Endpoints for netflow, holdings, perp trades.
-- **Arkham**: Entity labeling, address intelligence, transfers. Paid API, request access.
-- **Binance Futures**: Public endpoints for funding, OI, long/short ratio, klines – no key needed for market data.
+### 1. Buat Telegram Bot
+1. Buka Telegram dan cari **@BotFather**.
+2. Kirim perintah `/newbot`.
+3. Ikuti instruksi (beri nama & username bot).
+4. Simpan **Bot Token** yang diberikan (contoh: `7123456789:AAHxxxxxxxx`).
 
-### Scheduling Tips
-- Day trading: every 1-4 hours
-- Swing: 1-2 times per day
-- GitHub Actions free tier: 2000 minutes/month for private, unlimited for public.
+### 2. Buat Channel Telegram
+1. Buat Channel baru (bisa publik atau privat).
+2. Tambahkan bot kamu sebagai **Administrator**.
+3. Berikan izin untuk mengirim pesan (Post Messages).
+4. Dapatkan **Chat ID**:
+   - Jika channel publik: gunakan `@nama_channel`
+   - Jika privat: kirim pesan ke channel, lalu buka browser:
+     ```
+     https://api.telegram.org/bot<TOKEN_KAMU>/getUpdates
+     ```
+     Cari `"chat":{"id":-100xxxxxxxxxx}` dan salin angkanya.
 
-### Testing Locally
+### 3. Upload ke GitHub
+1. Buat repository baru di GitHub (public lebih disarankan agar free minutes unlimited).
+2. Upload semua file dari folder ini ke repository tersebut.
+   - Atau clone repo kosong lalu copy file-file ini.
+
+### 4. Tambahkan Secrets
+Pergi ke:
+**Repository → Settings → Secrets and variables → Actions → New repository secret**
+
+Tambahkan secret berikut:
+
+| Nama Secret          | Wajib? | Keterangan                          |
+|----------------------|--------|-------------------------------------|
+| `TELEGRAM_BOT_TOKEN` | Ya     | Token dari BotFather                |
+| `TELEGRAM_CHAT_ID`   | Ya     | Chat ID channel                     |
+| `COINGECKO_API_KEY`  | Opsional | API key CoinGecko (Demo/Pro)     |
+| `CMC_API_KEY`        | Opsional | API key CoinMarketCap            |
+| `NANSEN_API_KEY`     | Opsional | API key Nansen (berbayar)        |
+| `ARKHAM_API_KEY`     | Opsional | API key Arkham (berbayar)        |
+
+### 5. Aktifkan Workflow
+1. Push semua file.
+2. Buka tab **Actions** di repository.
+3. Jika ada peringatan, klik "I understand my workflows, go ahead and enable them".
+4. Workflow akan berjalan sesuai jadwal cron.
+5. Untuk testing: klik workflow → **Run workflow** → Run.
+
+### 6. Kustomisasi
+- Ubah daftar coin di `config/config.yaml`
+- Ubah jadwal di file `.github/workflows/crypto_analysis.yml` (format cron UTC)
+- Sesuaikan threshold sinyal di `config.yaml`
+- Tambahkan logika thesis atau indikator teknikal di `src/analysis_bot.py`
+
+---
+
+## Contoh Jadwal Cron (UTC)
+
+| Kebutuhan              | Cron Expression     | Keterangan                  |
+|------------------------|---------------------|-----------------------------|
+| Setiap 4 jam           | `0 */4 * * *`      | Default                     |
+| Setiap jam (Day Trade) | `0 * * * *`        | Lebih sering                |
+| 2x sehari (Swing)      | `0 8,20 * * *`     | Pagi & malam                |
+| Setiap hari jam 7 pagi | `0 7 * * *`        | Satu kali sehari            |
+
+---
+
+## Testing Lokal
+
 ```bash
-export TELEGRAM_BOT_TOKEN=...
-export TELEGRAM_CHAT_ID=...
+# Buat file .env (jangan di-commit)
+echo "TELEGRAM_BOT_TOKEN=xxx" > .env
+echo "TELEGRAM_CHAT_ID=xxx" >> .env
+
+# Install & jalankan
 pip install -r requirements.txt
 python src/analysis_bot.py
 ```
 
-Extend the script for full FA (tokenomics, team, news via other APIs), more TA timeframes, risk management rules, etc.
+---
 
-Happy trading – but manage risk!
+## Catatan Sumber Data
+
+- **CoinGecko**: Gratis (rate limit ketat). Lebih baik pakai API key.
+- **Binance Futures**: Publik, tidak butuh key untuk data market.
+- **CoinMarketCap**: Free Basic plan tersedia.
+- **Nansen**: On-chain smart money, whale activity. Berbayar.
+- **Arkham**: Entity labeling & transfer intelligence. Berbayar / request access.
+
+---
+
+## Pengembangan Lanjutan
+
+- Tambahkan chart (matplotlib + sendPhoto)
+- Integrasi berita (CryptoPanic, NewsAPI)
+- Multi-timeframe (4H, Daily)
+- Risk management calculator
+- Ranking top movers
+- Dukungan exchange lain (Bybit, OKX)
+
+---
+
+**Selamat menggunakan!** Kelola risiko dengan baik.  
+Jika ada error, cek tab Actions → log workflow.
+
+*Dibuat sebagai template edukasi. Bukan rekomendasi investasi.*

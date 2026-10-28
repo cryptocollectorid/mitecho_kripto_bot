@@ -1,5 +1,5 @@
 requests>=2.31.0
-python-telegram-bot>=20.0  # optional, or use pure requests
+pyyaml>=6.0
 pandas>=2.0.0
-ta>=0.11.0  # technical analysis library
+ta>=0.11.0
 python-dotenv>=1.0.0
