@@ -6,7 +6,7 @@ on:
     - cron: '0 1 * * *'
     # Jam 7 malam WIB (12:00 UTC)
     - cron: '0 12 * * *'
-  workflow_dispatch:   # Tetap bisa dijalankan manual
+  workflow_dispatch:
 
 jobs:
   advanced-analysis:
