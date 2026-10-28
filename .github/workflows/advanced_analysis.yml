@@ -14,13 +14,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Debug - List files
-        run: |
-          echo "=== Current directory ==="
-          pwd
-          echo "=== List all files ==="
-          find . -type f -name "*.py" -o -name "*.yaml" -o -name "*.yml" | head -30
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -33,7 +26,6 @@ jobs:
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
           else
-            echo "requirements.txt not found, installing core packages..."
             pip install requests pyyaml pandas ta matplotlib mplfinance Pillow
           fi
 
@@ -44,16 +36,11 @@ jobs:
           COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
           NANSEN_API_KEY: ${{ secrets.NANSEN_API_KEY }}
         run: |
-          # Coba beberapa kemungkinan path
-          if [ -f src/analysis_bot.py ]; then
-            echo "Running src/analysis_bot.py"
-            python src/analysis_bot.py
-          elif [ -f analysis_bot.py ]; then
-            echo "Running analysis_bot.py (root)"
+          if [ -f analysis_bot.py ]; then
+            echo "Running analysis_bot.py"
             python analysis_bot.py
           else
-            echo "ERROR: analysis_bot.py tidak ditemukan!"
-            echo "Silakan letakkan file di src/analysis_bot.py atau di root"
-            find . -name "analysis_bot.py" || true
+            echo "ERROR: analysis_bot.py tidak ditemukan"
+            ls -la
             exit 1
           fi
