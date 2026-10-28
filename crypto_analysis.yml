@@ -1,0 +1,36 @@
+name: Crypto Analysis to Telegram
+
+on:
+  schedule:
+    # Runs every 4 hours (adjust as needed). Cron is UTC.
+    # For day trading: more frequent, e.g. every hour: '0 * * * *'
+    # For swing: daily '0 0 * * *' or twice daily
+    - cron: '0 */4 * * *'
+  workflow_dispatch:  # Allow manual trigger from Actions tab
+
+jobs:
+  analyze-and-post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run analysis and send to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+          CMC_API_KEY: ${{ secrets.CMC_API_KEY }}
+          NANSEN_API_KEY: ${{ secrets.NANSEN_API_KEY }}
+          ARKHAM_API_KEY: ${{ secrets.ARKHAM_API_KEY }}
+        run: python src/analysis_bot.py
