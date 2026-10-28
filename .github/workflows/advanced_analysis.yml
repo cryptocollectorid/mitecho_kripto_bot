@@ -2,8 +2,11 @@ name: Advanced Crypto Analysis → Telegram
 
 on:
   schedule:
-    - cron: '0 */4 * * *'
-  workflow_dispatch:
+    # Jam 8 pagi WIB (01:00 UTC)
+    - cron: '0 1 * * *'
+    # Jam 7 malam WIB (12:00 UTC)
+    - cron: '0 12 * * *'
+  workflow_dispatch:   # Tetap bisa dijalankan manual
 
 jobs:
   advanced-analysis:
