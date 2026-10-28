@@ -1,10 +1,6 @@
 """
 Crypto Analysis Bot ADVANCED
-- Chart (candlestick + EMA + RSI)
-- Multi-timeframe (15m, 1h, 4h, 1d)
-- Top Gainers & Losers ranking
-- Nansen dummy integration
-- Futures signals + Thesis
+Disesuaikan dengan struktur file di ROOT repository
 """
 
 import os
@@ -22,17 +18,18 @@ from io import BytesIO
 
 # ===================== CONFIG =====================
 def load_config():
-    paths = [
-        os.path.join(os.path.dirname(__file__), "..", "config", "config.yaml"),
+    possible = [
+        "config.yaml",                    # di root (sesuai repo kamu sekarang)
         "config/config.yaml",
-        "../config/config.yaml",
+        os.path.join(os.path.dirname(__file__), "config.yaml"),
+        os.path.join(os.path.dirname(__file__), "..", "config", "config.yaml"),
     ]
-    for p in paths:
-        if os.path.exists(p):
-            print(f"✓ Config loaded: {p}")
-            with open(p, "r", encoding="utf-8") as f:
+    for path in possible:
+        if os.path.exists(path):
+            print(f"✓ Config loaded from: {path}")
+            with open(path, "r", encoding="utf-8") as f:
                 return yaml.safe_load(f)
-    print("⚠️ Using default config")
+    print("⚠️ Config tidak ditemukan, menggunakan default")
     return {
         "coins": ["bitcoin", "ethereum", "solana"],
         "settings": {"send_charts": True, "include_top_gainers": True, "multi_timeframe": True},
@@ -54,7 +51,6 @@ NANSEN_API_KEY = os.getenv("NANSEN_API_KEY")
 CG_BASE = "https://api.coingecko.com/api/v3"
 BINANCE = "https://fapi.binance.com"
 
-# ===================== HELPERS =====================
 def request_retry(url, params=None, headers=None, retries=3):
     for i in range(retries):
         try:
@@ -75,7 +71,6 @@ def get_headers():
         h["x-cg-demo-api-key"] = COINGECKO_API_KEY
     return h
 
-# ===================== DATA =====================
 def get_global():
     data = request_retry(f"{CG_BASE}/global", headers=get_headers())
     if not data or "data" not in data:
@@ -139,22 +134,19 @@ def get_futures(symbol: str):
         res["ls"] = float(ls[0].get("longShortRatio", 0))
     return res
 
-# ===================== NANSEN DUMMY =====================
 def get_nansen_dummy(symbol: str) -> str:
     if not NANSEN_CFG.get("enabled", False):
         return ""
     if NANSEN_CFG.get("use_real_api") and NANSEN_API_KEY:
-        # TODO: implement real Nansen call here
-        return "🔗 Nansen: (Real API placeholder - implement endpoint)"
+        return "🔗 Nansen: (Real API placeholder)"
     return (
         f"🧠 *Nansen Smart Money (Dummy)*\n"
         f"• Netflow 24h: +$12.4M (accumulation)\n"
         f"• Top wallets buying: 3 whale wallets\n"
         f"• Perp positioning: Mild long bias\n"
-        f"_Ganti `use_real_api: true` + isi NANSEN_API_KEY untuk data asli_"
+        f"_Set use_real_api: true + NANSEN_API_KEY untuk data asli_"
     )
 
-# ===================== TECHNICAL =====================
 def analyze_tf(klines, tf_name: str) -> Dict:
     if not klines or len(klines) < 30:
         return {"tf": tf_name, "error": True}
@@ -183,7 +175,6 @@ def multi_timeframe_analysis(symbol: str) -> Dict:
         result[name] = analyze_tf(klines, name)
     return result
 
-# ===================== CHART =====================
 def create_chart(symbol: str, klines) -> Optional[BytesIO]:
     if not klines or len(klines) < 50:
         return None
@@ -193,16 +184,12 @@ def create_chart(symbol: str, klines) -> Optional[BytesIO]:
         df.set_index("Date", inplace=True)
         for c in ["Open","High","Low","Close","Volume"]:
             df[c] = df[c].astype(float)
-
-        # EMA
         df["EMA20"] = df["Close"].ewm(span=20).mean()
         df["EMA50"] = df["Close"].ewm(span=50).mean()
-
         apds = [
             mpf.make_addplot(df["EMA20"], color="orange", width=1),
             mpf.make_addplot(df["EMA50"], color="blue", width=1),
         ]
-
         buf = BytesIO()
         mpf.plot(df, type="candle", style="charles", addplot=apds,
                  volume=True, title=f"{symbol} 1H", ylabel="Price",
@@ -213,7 +200,6 @@ def create_chart(symbol: str, klines) -> Optional[BytesIO]:
         print(f"Chart error: {e}")
         return None
 
-# ===================== TELEGRAM =====================
 def send_text(text: str):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("❌ Telegram secrets missing")
@@ -236,7 +222,6 @@ def send_photo(buf: BytesIO, caption: str = ""):
     r = requests.post(url, files=files, data=data, timeout=30)
     return r.status_code == 200
 
-# ===================== MESSAGE BUILDERS =====================
 def build_top_movers_msg(gainers, losers):
     def fmt(items, title):
         lines = [f"*{title}*"]
@@ -251,13 +236,11 @@ def build_coin_message(cg, futures, mtf, nansen_txt):
     price = cg.get("price") or 0
     ath = cg.get("ath") or 0
     from_ath = ((price / ath) - 1) * 100 if ath else 0
-
     mtf_lines = []
     for tf, d in mtf.items():
         if d.get("error"):
             continue
         mtf_lines.append(f"• {tf}: {d['trend']} | RSI {d.get('rsi')} | EMA20 ${d.get('ema20')}")
-
     msg = f"""
 📊 *{cg.get('name')} ({cg.get('symbol')})* | {now}
 
@@ -283,12 +266,10 @@ _Day + Swing | DYOR_
 """
     return msg.strip()
 
-# ===================== MAIN =====================
 def main():
     print("=== ADVANCED Crypto Analysis Bot ===")
     global_data = get_global()
 
-    # Global summary
     if SETTINGS.get("include_global_summary", True) and global_data:
         gmsg = f"""
 🌐 *GLOBAL MARKET*
@@ -300,7 +281,6 @@ def main():
         send_text(gmsg.strip())
         time.sleep(1)
 
-    # Top movers
     if SETTINGS.get("include_top_gainers", True):
         gainers = get_top_movers("price_change_percentage_24h_desc")
         losers = get_top_movers("price_change_percentage_24h_asc")
@@ -308,7 +288,6 @@ def main():
             send_text(build_top_movers_msg(gainers, losers))
             time.sleep(1)
 
-    # Per coin analysis
     for coin_id in COINS:
         print(f"\n--- {coin_id} ---")
         try:
@@ -322,7 +301,6 @@ def main():
             msg = build_coin_message(cg, futures, mtf, nansen)
             send_text(msg)
 
-            # Chart
             if SETTINGS.get("send_charts", True):
                 klines = get_klines(symbol, "1h", 100)
                 chart = create_chart(symbol, klines)
