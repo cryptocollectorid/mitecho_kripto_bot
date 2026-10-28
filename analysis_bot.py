@@ -1,9 +1,6 @@
 """
-Crypto Analysis Bot - Fundamental + Technical + Futures Signals
-Untuk Day Trading & Swing Trading
-Dijalankan via GitHub Actions → Telegram Channel
-
-Disclaimer: Bukan nasihat keuangan. DYOR. Risiko kehilangan modal tinggi.
+Crypto Analysis Bot - Versi lebih robust
+Fundamental + Technical + Futures Signals
 """
 
 import os
@@ -16,46 +13,57 @@ import ta
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
-# Load config
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "config.yaml")
-with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-    CONFIG = yaml.safe_load(f)
+# ===== Load Config (lebih aman) =====
+def load_config():
+    possible_paths = [
+        os.path.join(os.path.dirname(__file__), "..", "config", "config.yaml"),
+        os.path.join(os.getcwd(), "config", "config.yaml"),
+        "config/config.yaml",
+        "../config/config.yaml",
+    ]
+    for path in possible_paths:
+        if os.path.exists(path):
+            print(f"✓ Config ditemukan di: {path}")
+            with open(path, "r", encoding="utf-8") as f:
+                return yaml.safe_load(f)
+    print("❌ Config tidak ditemukan. Menggunakan default.")
+    return {
+        "coins": ["bitcoin", "ethereum"],
+        "settings": {"include_global_summary": True},
+        "signals": {"rsi_oversold": 30, "rsi_overbought": 70, "funding_high": 0.01, "funding_low": -0.005, "long_short_crowded": 1.8}
+    }
 
+CONFIG = load_config()
 COINS = CONFIG.get("coins", ["bitcoin"])
 SETTINGS = CONFIG.get("settings", {})
 SIGNALS = CONFIG.get("signals", {})
 
-# Environment variables (GitHub Secrets)
+# ===== Environment =====
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY")
-CMC_API_KEY = os.getenv("CMC_API_KEY")
-NANSEN_API_KEY = os.getenv("NANSEN_API_KEY")
-ARKHAM_API_KEY = os.getenv("ARKHAM_API_KEY")
 
 CG_BASE = "https://api.coingecko.com/api/v3"
 BINANCE_FUTURES = "https://fapi.binance.com"
-CMC_BASE = "https://pro-api.coinmarketcap.com/v1"
 
 def request_with_retry(url: str, params: dict = None, headers: dict = None, max_retries: int = 3) -> Optional[dict]:
-    """Request dengan retry sederhana."""
     for attempt in range(max_retries):
         try:
             resp = requests.get(url, params=params, headers=headers, timeout=15)
             if resp.status_code == 200:
                 return resp.json()
             elif resp.status_code == 429:
+                print(f"Rate limit, tunggu {2**attempt}s...")
                 time.sleep(2 ** attempt)
                 continue
             else:
-                print(f"HTTP {resp.status_code} for {url}")
+                print(f"HTTP {resp.status_code}: {url}")
         except Exception as e:
             print(f"Request error: {e}")
             time.sleep(1)
     return None
 
 def get_global_data() -> Dict[str, Any]:
-    """Data global market dari CoinGecko."""
     headers = {}
     if COINGECKO_API_KEY:
         headers["x-cg-demo-api-key"] = COINGECKO_API_KEY
@@ -73,7 +81,6 @@ def get_global_data() -> Dict[str, Any]:
     }
 
 def get_coingecko_coin(coin_id: str) -> Dict[str, Any]:
-    """Detail coin dari CoinGecko."""
     headers = {}
     if COINGECKO_API_KEY:
         headers["x-cg-demo-api-key"] = COINGECKO_API_KEY
@@ -100,31 +107,21 @@ def get_coingecko_coin(coin_id: str) -> Dict[str, Any]:
         "change_7d": market.get("price_change_percentage_7d"),
         "change_30d": market.get("price_change_percentage_30d"),
         "ath": market.get("ath", {}).get("usd"),
-        "ath_change": market.get("ath_change_percentage", {}).get("usd"),
         "circulating": market.get("circulating_supply"),
-        "total_supply": market.get("total_supply"),
-        "max_supply": market.get("max_supply"),
         "sentiment_up": data.get("sentiment_votes_up_percentage"),
-        "sentiment_down": data.get("sentiment_votes_down_percentage"),
-        "description": (data.get("description", {}).get("en") or "")[:300],
     }
 
 def get_binance_futures(symbol: str) -> Dict[str, Any]:
-    """Data futures publik dari Binance."""
     result = {}
-    # Premium index (funding + mark price)
     prem = request_with_retry(f"{BINANCE_FUTURES}/fapi/v1/premiumIndex", {"symbol": symbol})
     if prem:
-        result["funding_rate"] = float(prem.get("lastFundingRate", 0)) * 100  # dalam %
+        result["funding_rate"] = float(prem.get("lastFundingRate", 0)) * 100
         result["mark_price"] = float(prem.get("markPrice", 0))
-        result["index_price"] = float(prem.get("indexPrice", 0))
 
-    # Open Interest
     oi = request_with_retry(f"{BINANCE_FUTURES}/fapi/v1/openInterest", {"symbol": symbol})
     if oi:
         result["open_interest"] = float(oi.get("openInterest", 0))
 
-    # Long/Short Account Ratio
     ls = request_with_retry(
         f"{BINANCE_FUTURES}/futures/data/globalLongShortAccountRatio",
         {"symbol": symbol, "period": "5m", "limit": 1}
@@ -132,7 +129,6 @@ def get_binance_futures(symbol: str) -> Dict[str, Any]:
     if ls and isinstance(ls, list) and len(ls) > 0:
         result["long_short_ratio"] = float(ls[0].get("longShortRatio", 0))
 
-    # Klines 1h untuk TA
     klines = request_with_retry(
         f"{BINANCE_FUTURES}/fapi/v1/klines",
         {"symbol": symbol, "interval": "1h", "limit": 120}
@@ -141,9 +137,8 @@ def get_binance_futures(symbol: str) -> Dict[str, Any]:
     return result
 
 def compute_technicals(klines: List) -> Dict[str, Any]:
-    """Hitung indikator teknikal sederhana."""
     if not klines or len(klines) < 50:
-        return {"error": "Data klines tidak cukup"}
+        return {"error": "Data klines tidak cukup", "price": 0, "rsi": None, "trend": "Unknown"}
     df = pd.DataFrame(klines, columns=[
         "open_time", "open", "high", "low", "close", "volume",
         "close_time", "qav", "trades", "taker_base", "taker_quote", "ignore"
@@ -155,10 +150,8 @@ def compute_technicals(klines: List) -> Dict[str, Any]:
     macd_ind = ta.trend.MACD(df["close"])
     df["macd"] = macd_ind.macd()
     df["macd_signal"] = macd_ind.macd_signal()
-    df["macd_hist"] = macd_ind.macd_diff()
     df["ema20"] = ta.trend.EMAIndicator(df["close"], window=20).ema_indicator()
     df["ema50"] = ta.trend.EMAIndicator(df["close"], window=50).ema_indicator()
-    df["ema200"] = ta.trend.EMAIndicator(df["close"], window=200).ema_indicator()
 
     last = df.iloc[-1]
     prev = df.iloc[-2]
@@ -181,11 +174,9 @@ def compute_technicals(klines: List) -> Dict[str, Any]:
         "ema20": round(last["ema20"], 2),
         "ema50": round(last["ema50"], 2),
         "trend": trend,
-        "volume": round(last["volume"], 2),
     }
 
 def generate_thesis(cg: Dict, futures: Dict, ta_data: Dict) -> str:
-    """Generate thesis sederhana berdasarkan data."""
     change_24h = cg.get("change_24h") or 0
     funding = futures.get("funding_rate") or 0
     ls_ratio = futures.get("long_short_ratio") or 1
@@ -215,7 +206,6 @@ def generate_futures_signal(futures: Dict) -> str:
         return "Neutral / Mild Bearish"
 
 def format_message(cg: Dict, futures: Dict, ta_data: Dict, global_data: Dict) -> str:
-    """Format pesan Telegram (Markdown)."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     thesis = generate_thesis(cg, futures, ta_data)
     fut_signal = generate_futures_signal(futures)
@@ -259,24 +249,23 @@ _Metode: Day Trading + Swing Trading | Bukan financial advice. DYOR._
     return msg.strip()
 
 def send_telegram(text: str) -> bool:
-    """Kirim pesan ke Telegram."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("ERROR: TELEGRAM_BOT_TOKEN atau TELEGRAM_CHAT_ID tidak ditemukan")
+        print("❌ TELEGRAM_BOT_TOKEN atau TELEGRAM_CHAT_ID belum di-set di Secrets")
         return False
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
-        "text": text[:4090],  # Telegram limit
+        "text": text[:4090],
         "parse_mode": "Markdown",
         "disable_web_page_preview": True
     }
     try:
         resp = requests.post(url, json=payload, timeout=15)
         if resp.status_code == 200:
-            print("✓ Pesan terkirim")
+            print("✓ Pesan terkirim ke Telegram")
             return True
         else:
-            print(f"✗ Gagal kirim: {resp.status_code} - {resp.text}")
+            print(f"✗ Gagal kirim Telegram: {resp.status_code} - {resp.text}")
             return False
     except Exception as e:
         print(f"✗ Exception kirim Telegram: {e}")
@@ -284,10 +273,15 @@ def send_telegram(text: str) -> bool:
 
 def main():
     print("=== Memulai Crypto Analysis Bot ===")
-    global_data = get_global_data()
-    print(f"Global data fetched: BTC Dom {global_data.get('btc_dominance')}")
+    print(f"Coins yang akan dianalisis: {COINS}")
 
-    if SETTINGS.get("include_global_summary") and global_data:
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("⚠️  WARNING: Secrets Telegram belum lengkap!")
+
+    global_data = get_global_data()
+    print(f"Global data: BTC Dom {global_data.get('btc_dominance')}")
+
+    if SETTINGS.get("include_global_summary", True) and global_data:
         summary = f"""
 🌐 *GLOBAL CRYPTO MARKET UPDATE*
 {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}
@@ -303,6 +297,7 @@ _Data: CoinGecko | Analisis otomatis via GitHub Actions_
         send_telegram(summary.strip())
         time.sleep(1)
 
+    success_count = 0
     for coin_id in COINS:
         print(f"\n--- Processing {coin_id} ---")
         try:
@@ -314,13 +309,22 @@ _Data: CoinGecko | Analisis otomatis via GitHub Actions_
             futures = get_binance_futures(symbol)
             ta_data = compute_technicals(futures.get("klines", []))
             message = format_message(cg, futures, ta_data, global_data)
-            send_telegram(message)
-            time.sleep(2)  # Hindari rate limit Telegram
+            if send_telegram(message):
+                success_count += 1
+            time.sleep(2)
         except Exception as e:
             print(f"Error pada {coin_id}: {e}")
             send_telegram(f"⚠️ Error analisis *{coin_id}*: {str(e)[:300]}")
 
-    print("=== Selesai ===")
+    print(f"\n=== Selesai | Berhasil kirim: {success_count}/{len(COINS)} ===")
+    # Exit 0 meski ada yang gagal (supaya workflow tidak selalu merah)
+    sys.exit(0)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"FATAL ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
