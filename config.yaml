@@ -1,4 +1,6 @@
-# Daftar coin yang akan dianalisis (CoinGecko ID)
+# ========================
+# DAFTAR COIN UTAMA
+# ========================
 coins:
   - bitcoin
   - ethereum
@@ -6,20 +8,32 @@ coins:
   - binancecoin
   - ripple
 
-# Pengaturan analisis
+# ========================
+# PENGATURAN
+# ========================
 settings:
   timezone: "UTC"
-  send_separate_messages: true   # true = kirim per coin, false = satu pesan panjang
+  send_charts: true
   include_global_summary: true
-  max_message_length: 4000
+  include_top_gainers: true
+  include_top_losers: true
+  top_movers_count: 8
+  multi_timeframe: true
 
-# Threshold untuk sinyal (bisa disesuaikan)
+# ========================
+# THRESHOLD SINYAL
+# ========================
 signals:
   rsi_oversold: 30
   rsi_overbought: 70
-  funding_high: 0.01          # 0.01% = 0.0001 dalam decimal
+  funding_high: 0.01
   funding_low: -0.005
   long_short_crowded: 1.8
 
-# Catatan: Nansen & Arkham butuh API key berbayar
-# Isi di GitHub Secrets jika tersedia
+# ========================
+# NANSEN (DUMMY / REAL)
+# ========================
+nansen:
+  enabled: true
+  use_real_api: false   # ganti true jika sudah punya API key
+  dummy_message: true
